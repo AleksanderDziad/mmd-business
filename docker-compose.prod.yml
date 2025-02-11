@@ -1,0 +1,10 @@
+version: '3.8'
+
+services:
+  app:
+    image: alex12323/mmd-business:latest  # Pobieramy najnowszy obraz z Docker Hub
+    restart: always
+    ports:
+      - "80:5000"  # Przekierowanie ruchu HTTP na aplikację Flask
+    environment:
+      - FLASK_ENV=production

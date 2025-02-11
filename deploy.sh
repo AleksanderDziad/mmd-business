@@ -1,27 +1,11 @@
 #!/bin/bash
 
-echo "📦 Aktualizacja kodu..."
-git pull origin main
+echo "🔥 Aktualizacja obrazu Docker..."
+docker pull alex12323/mmd-business:latest
 
-echo "🚀 Budowanie i wdrażanie kontenerów..."
-docker-compose down
-docker-compose up -d --build
+echo "🛑 Zatrzymanie starego kontenera..."
+docker stop mmd-business || true
+docker rm mmd-business || true
 
-echo "🛠️ Migracja bazy danych..."
-docker exec -it mmd-business flask db upgrade
-
-echo "📊 Optymalizacja bazy danych..."
-docker exec -it mmd-db psql -U mmduser -d mmd_business -c "VACUUM ANALYZE;"
-
-echo "📂 Wdrażanie modułów funkcjonalności..."
-
-MODULES=("crm" "analytics" "seo" "inventory" "marketing")
-
-for MODULE in "${MODULES[@]}"; do
-    echo "🔧 Wdrażanie modułu: $MODULE..."
-    docker exec -it mmd-business flask db migrate -m "Dodanie modułu $MODULE"
-    docker exec -it mmd-business flask db upgrade
-done
-
-echo "✅ Wszystkie moduły zostały wdrożone!"
-
+echo "🚀 Uruchomienie nowego kontenera..."
+docker run -d --name mmd-business -p 80:5000 alex12323/mmd-business:latest
