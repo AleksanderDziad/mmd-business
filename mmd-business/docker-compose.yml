@@ -1,31 +1,91 @@
 services:
   db:
-    image: postgres
+    image: postgres:13
     container_name: mmd-db
     environment:
       POSTGRES_USER: mmduser
       POSTGRES_PASSWORD: mmdpass
       POSTGRES_DB: mmd_business
     ports:
-      - '5432:5432'
+      - "5432:5432"
     networks:
       - mmd-network
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mmduser -d mmd_business"]
+      interval: 10s
+      retries: 5
+      timeout: 5s
 
-  app:
-    image: mmd-business
-    container_name: mmd-business
+  backend:
     build:
-      context: .
+      context: ./backend
       dockerfile: Dockerfile
+    container_name: mmd-backend
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     environment:
-      FLASK_APP: app.py
+      - DATABASE_URL=postgresql://mmduser:mmdpass@db:5432/mmd_business
     ports:
-      - '5001:5000'
+      - "8000:8000"
     networks:
       - mmd-network
+    volumes:
+      - ./backend:/app
+    working_dir: /app/backend
+    command: ["uvicorn", "app.app:app", "--host", "0.0.0.0", "--port", "8000"]
+
+  frontend:
+    image: node:14
+    container_name: mmd-frontend
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - mmd-network
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+    working_dir: /app
+    command: ["npm", "start"]
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:latest
+    container_name: keycloak
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      KEYCLOAK_USER: admin
+      KEYCLOAK_PASSWORD: admin_password
+      KEYCLOAK_IMPORT: /opt/keycloak/realm-config/your-realm.json
+    networks:
+      - mmd-network
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./keycloak-config:/opt/keycloak/realm-config
+
+  analytics:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.10.0
+    container_name: analytics
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      discovery.type: single-node
+    networks:
+      - mmd-network
+    ports:
+      - "9200:9200"
 
 networks:
   mmd-network:
     driver: bridge
+
+volumes:
+  db_data:
+
