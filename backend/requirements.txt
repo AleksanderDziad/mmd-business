@@ -1,5 +1,12 @@
+email-validator
+httpx
+pytest
+SQLAlchemy
+psycopg2-binary
 fastapi
+python-jose
 uvicorn
+psycopg2
+alembic
 
-flask
-flask
+debugpy

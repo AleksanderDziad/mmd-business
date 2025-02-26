@@ -1,0 +1,48 @@
+services:
+  backend:
+    build: .
+    container_name: mmd_backend
+    restart: always
+    volumes:
+      - ./app:/app:cached
+    ports:
+      - "8000:8000"
+      - "5678:5678"  # 📌 Debugger port
+    depends_on:
+      postgres_mmd:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      - PYTHONUNBUFFERED=1
+      - WATCHFILES_FORCE_POLLING=true
+      - PYTHONPATH=/app/app  # ✅ Poprawiony PYTHONPATH
+      - UVICORN_RELOAD=true  # 📌 Hot reload
+      - DEBUG_MODE=true  # 📌 Debugger
+    command: >
+      sh -c "pip install -r /app/requirements.txt && alembic upgrade head && uvicorn app.app.main:app --host 0.0.0.0 --port 8000 --reload --workers 1"
+
+  postgres_mmd:
+    image: postgres:15
+    container_name: postgres_mmd
+    restart: always
+    env_file:
+      - .env
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-mypassword}
+      POSTGRES_DB: ${POSTGRES_DB:-postgres}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./initdb:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+
